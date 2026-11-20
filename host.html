@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#12122a">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NovaQuiz – Admin</title>
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest-host.json">
+<link rel="stylesheet" href="style.css">
+<style>
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--line);background:#0006;position:sticky;top:0;z-index:5;backdrop-filter:blur(6px)}
+  .bar .brand{font-size:1.3rem}
+  .main{max-width:1200px;margin:0 auto;padding:24px}
+  .stage{min-height:calc(100vh - 66px);display:flex;flex-direction:column;padding:24px 40px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .grid2{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  h2{margin:0 0 12px}
+  /* editor */
+  .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+  .qhead{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .qhead .n{background:var(--accent);color:#1b1530;font-weight:900;border-radius:8px;padding:4px 10px}
+  .qhead .sp{flex:1}
+  .qhead button{padding:6px 10px;font-size:.85rem}
+  .optrow{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .optrow .sw{width:34px;height:34px;border-radius:9px;background:var(--c);display:flex;align-items:center;justify-content:center;flex:none;color:#fff}
+  .optrow input[type=radio]{width:22px;height:22px;accent-color:var(--good);flex:none}
+  .optrow .x{padding:6px 10px;background:transparent;color:var(--mute)}
+  .qmeta{display:grid;grid-template-columns:110px 1fr;gap:10px;margin-top:10px}
+  .settings .s{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:12px}
+  .settings .s:last-child{border:0}
+  .settings input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent);flex:none}
+  .settings .s span{font-size:.95rem}
+  .sticky{position:sticky;top:90px}
+  .warn{color:var(--bad);font-size:.85rem;font-weight:600}
+  /* lobby */
+  .pinbox{display:flex;gap:28px;align-items:center;background:#fff;color:#1b1530;border-radius:24px;padding:18px 28px;align-self:center}
+  .pinbox .pin{font-size:5rem;font-weight:900;letter-spacing:.08em;line-height:1}
+  .pinbox img,.pinbox .qr svg{width:170px;height:170px;display:block}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:26px;max-height:46vh;overflow:auto}
+  .chip{background:var(--card);border:1px solid var(--line);padding:9px 16px;border-radius:999px;font-weight:700;animation:pop .35s both;cursor:pointer}
+  .chip:hover{background:var(--bad);text-decoration:line-through}
+  .chip.off{opacity:.45}
+  /* question */
+  .qtop{display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .qbig{font-size:clamp(1.6rem,3.2vw,2.8rem);font-weight:900;text-align:center;margin:24px auto;max-width:1100px;line-height:1.2}
+  .qimg{max-height:34vh;max-width:70%;border-radius:16px;align-self:center;margin-bottom:18px}
+  .count{font-size:2.6rem;font-weight:900;text-align:center;line-height:1}
+  .count small{display:block;font-size:.9rem;color:var(--mute);font-weight:700}
+  .ogrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:auto}
+  .otile{background:var(--c);border-radius:16px;padding:22px;display:flex;gap:16px;align-items:center;font-size:clamp(1.1rem,2vw,1.7rem);font-weight:800;color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.25);transition:opacity .3s}
+  .otile.wrong{opacity:.28}
+  .otile .tick{margin-left:auto;font-size:1.6em}
+  .dist{display:flex;gap:22px;justify-content:center;align-items:flex-end;height:220px;margin:6px 0 20px}
+  .dcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:90px;height:100%}
+  .dcol .b{width:100%;background:var(--c);border-radius:10px 10px 0 0;transition:height .6s cubic-bezier(.2,.9,.3,1);min-height:6px}
+  .dcol .v{font-weight:900;font-size:1.4rem;margin-bottom:6px}
+  .dcol .sh{margin-top:8px}
+  .fast{text-align:center;font-size:1.2rem;font-weight:700;color:var(--accent);margin-bottom:22px}
+  /* leaderboard */
+  .lb{max-width:900px;width:100%;margin:10px auto 0}
+  .lbrow{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:14px;padding:12px 18px;margin-bottom:8px;font-size:1.3rem;font-weight:800;animation:rise .4s both}
+  .lbrow .rk{width:44px;text-align:center;color:var(--accent)}
+  .lbrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lbrow .sc{font-variant-numeric:tabular-nums}
+  .lbrow.top1{background:linear-gradient(90deg,#b8860b,#7a5a0a)}
+  .podium{display:flex;gap:18px;align-items:flex-end;justify-content:center;margin:20px 0}
+  .pcol{width:230px;text-align:center}
+  .pcol .blk{border-radius:16px 16px 0 0;display:flex;align-items:flex-start;justify-content:center;font-size:3.6rem;font-weight:900;padding-top:12px;animation:rise .8s both}
+  .pcol .who{font-size:1.4rem;font-weight:900;margin-bottom:8px;word-break:break-word}
+  table{width:100%;border-collapse:collapse;font-size:.95rem}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--mute);font-weight:700}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:22px;gap:12px}
+  .kbd{font-size:.8rem;color:var(--mute)}
+  .tvlink{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:14px;font-size:.9rem}
+  .tvlink code{background:var(--bg2);border:1px solid var(--line);padding:6px 10px;border-radius:8px;word-break:break-all}
+  /* big-screen display mode: view only */
+  body.screen #barRight button, body.screen .foot button, body.screen .kbd, body.screen .tvlink{display:none!important}
+  body.screen .chip{cursor:default} body.screen .chip:hover{background:var(--card);text-decoration:none}
+  /* phone-friendly host controls */
+  @media (max-width:700px){
+    .bar{padding:10px 12px;flex-wrap:wrap;gap:8px}
+    .bar .brand{font-size:1.05rem}
+    #barRight{gap:6px;font-size:.85rem}
+    #barRight button{padding:8px 10px}
+    .main{padding:14px}
+    .stage{padding:14px;min-height:calc(100dvh - 60px)}
+    .sticky{position:static}
+    .pinbox{flex-direction:column;gap:10px;padding:14px 18px}
+    .pinbox .pin{font-size:3rem}
+    .pinbox img,.pinbox .qr svg{width:150px;height:150px}
+    .qbig{font-size:1.35rem;margin:14px auto}
+    .ogrid{grid-template-columns:1fr;gap:8px}
+    .otile{padding:12px 14px;font-size:1rem}
+    .ring{transform:scale(.7);transform-origin:left center}
+    .count{font-size:1.8rem}
+    .dist{height:150px;gap:10px}
+    .dcol{width:52px}
+    .dcol .v{font-size:1.1rem}
+    .lbrow{font-size:1.05rem;padding:10px 12px}
+    .podium{gap:6px}
+    .pcol{width:32%}
+    .pcol .who{font-size:.95rem}
+    .pcol .blk{font-size:2rem}
+    h2.center{font-size:1.6rem!important}
+    .foot{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 35%);padding-top:18px;margin-top:auto}
+    .foot .btn-big{flex:1}
+    .kbd{display:none}
+    #cd{font-size:7rem!important}
+    table{font-size:.85rem} th:nth-child(5),td:nth-child(5){display:none}
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="brand">Nova<b>Quiz</b> <span class="muted" style="font-weight:600;font-size:.9rem">· Host</span></span>
+  <div class="row" id="barRight"></div>
+</div>
+
+<!-- ============ SETUP ============ -->
+<section id="v-setup" class="main">
+  <div class="grid2">
+    <div>
+      <div class="row" style="margin-bottom:16px">
+        <input id="title" placeholder="Quiz title" style="font-size:1.4rem;font-weight:800;flex:1;min-width:240px">
+      </div>
+      <div class="row" style="margin-bottom:16px">
+        <button id="addQ" class="btn-primary">+ Add question</button>
+        <button id="impCsv" class="btn-ghost">⬆ Import CSV / Excel-CSV</button>
+        <button id="sampleCsv" class="btn-ghost">⬇ CSV template</button>
+        <button id="expJson" class="btn-ghost">Save quiz file</button>
+        <button id="impJson" class="btn-ghost">Open quiz file</button>
+        <button id="clearAll" class="btn-ghost" style="color:var(--bad)">Clear all</button>
+        <input type="file" id="fileCsv" accept=".csv,text/csv" class="hidden">
+        <input type="file" id="fileJson" accept=".json,application/json" class="hidden">
+      </div>
+      <div id="qlist"></div>
+      <button id="addQ2" class="btn-ghost" style="width:100%;padding:16px">+ Add question</button>
+    </div>
+    <div class="sticky">
+      <div class="card settings">
+        <h2>Game settings</h2>
+        <div class="s"><span>Default time per question</span><select id="st-time" style="width:110px"><option>10</option><option>15</option><option selected>20</option><option>30</option><option>45</option><option>60</option></select></div>
+        <div class="s"><span>Faster correct answer = more points<br><small class="muted">500–1000 pts by speed; ties go to the quickest</small></span><input type="checkbox" id="st-speed" checked></div>
+        <div class="s"><span>Shuffle question order</span><input type="checkbox" id="st-shq"></div>
+        <div class="s"><span>Shuffle answer options</span><input type="checkbox" id="st-sho"></div>
+        <div class="s"><span>Show players their rank</span><input type="checkbox" id="st-rank" checked></div>
+        <div class="s"><span>Ask for Staff ID</span><input type="checkbox" id="st-id"></div>
+        <div class="s"><span>Allow joining after start</span><input type="checkbox" id="st-late" checked></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div id="summary" class="muted" style="margin-bottom:12px"></div>
+        <div id="invalid" class="warn" style="margin-bottom:10px"></div>
+        <button id="launch" class="btn-primary btn-big" style="width:100%">▶ Launch live game</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE STAGE ============ -->
+<section id="v-live" class="stage hidden"></section>
+
+<script src="common.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script type="module">
+import { createBackend } from './backend.js';
+const SCREEN = new URLSearchParams(location.search).get('screen'); // big-screen display mode
+if (SCREEN) document.body.classList.add('screen');
+const LS = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const LET = 'ABCDEF';
+
+// ---------------- QUIZ MODEL ----------------
+const SAMPLE = { title: 'Staff Knowledge Challenge', questions: [
+  { text: 'What should you do first when a customer raises a complaint?', options: ['Offer a refund', 'Listen and acknowledge the issue', 'Transfer to manager', 'Explain company policy'], correct: 1, time: 20, image: '' },
+  { text: 'Which of these is the strongest password?', options: ['Password123', 'company2026', 'T7#qL!9zR@2m', 'yourname01'], correct: 2, time: 15, image: '' },
+  { text: 'A phishing email usually tries to…', options: ['Share company news', 'Steal login details or money', 'Update your software', 'Book a meeting'], correct: 1, time: 15, image: '' },
+  { text: 'Where is the nearest fire assembly point?', options: ['Car park A', 'Main lobby', 'Rooftop', 'Canteen'], correct: 0, time: 20, image: '' },
+  { text: 'Which value best describes great teamwork?', options: ['Working alone', 'Blaming others', 'Sharing information openly', 'Avoiding meetings'], correct: 2, time: 15, image: '' },
+]};
+let quiz = LS.get('sq_quiz', null) || structuredClone(SAMPLE);
+const settings = LS.get('sq_settings', {});
+const save = () => { quiz.title = $('#title').value; LS.set('sq_quiz', quiz); summarize(); };
+
+function blankQ() { return { text: '', options: ['', '', '', ''], correct: 0, time: '', image: '' }; }
+
+function renderEditor() {
+  $('#title').value = quiz.title || '';
+  const list = $('#qlist');
+  list.innerHTML = quiz.questions.map((q, qi) => `
+    <div class="qcard" data-q="${qi}">
+      <div class="qhead"><span class="n">Q${qi + 1}</span><span class="sp"></span>
+        <button data-act="up" class="btn-ghost" title="Move up">↑</button>
+        <button data-act="down" class="btn-ghost" title="Move down">↓</button>
+        <button data-act="dup" class="btn-ghost" title="Duplicate">⧉</button>
+        <button data-act="del" class="btn-ghost" title="Delete" style="color:var(--bad)">✕</button></div>
+      <textarea rows="2" data-f="text" placeholder="Type the question…">${esc(q.text)}</textarea>
+      ${q.options.map((o, oi) => `
+        <div class="optrow opt" data-i="${oi}">
+          <span class="sw">${SHAPES[oi]}</span>
+          <input type="radio" name="c${qi}" value="${oi}" ${q.correct === oi ? 'checked' : ''} title="Mark as correct answer">
+          <input data-o="${oi}" value="${esc(o)}" placeholder="Option ${LET[oi]}${oi < 2 ? '' : ' (optional)'}">
+          ${q.options.length > 2 ? `<button class="x" data-act="rmopt" data-oi="${oi}" title="Remove option">✕</button>` : ''}
+        </div>`).join('')}
+      ${q.options.length < 6 ? `<button data-act="addopt" class="btn-ghost" style="margin-top:8px;padding:6px 12px;font-size:.85rem">+ option</button>` : ''}
+      <div class="qmeta">
+        <div><label>Seconds</label><input data-f="time" type="number" min="5" max="120" placeholder="default" value="${esc(q.time)}"></div>
+        <div><label>Image URL (optional)</label><input data-f="image" placeholder="https://…" value="${esc(q.image)}"></div>
+      </div>
+    </div>`).join('');
+  summarize();
+}
+
+$('#qlist').addEventListener('input', (e) => {
+  const card = e.target.closest('.qcard'); if (!card) return;
+  const q = quiz.questions[+card.dataset.q];
+  if (e.target.dataset.f) q[e.target.dataset.f] = e.target.value;
+  if (e.target.dataset.o != null) q.options[+e.target.dataset.o] = e.target.value;
+  if (e.target.type === 'radio') q.correct = +e.target.value;
+  save();
+});
+$('#qlist').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const qi = +b.closest('.qcard').dataset.q, qs = quiz.questions, q = qs[qi];
+  switch (b.dataset.act) {
+    case 'up': if (qi > 0) [qs[qi - 1], qs[qi]] = [qs[qi], qs[qi - 1]]; break;
+    case 'down': if (qi < qs.length - 1) [qs[qi + 1], qs[qi]] = [qs[qi], qs[qi + 1]]; break;
+    case 'dup': qs.splice(qi + 1, 0, structuredClone(q)); break;
+    case 'del': if (!confirmDel(q)) return; qs.splice(qi, 1); break;
+    case 'addopt': q.options.push(''); break;
+    case 'rmopt': { const oi = +b.dataset.oi; q.options.splice(oi, 1); if (q.correct === oi) q.correct = 0; else if (q.correct > oi) q.correct--; break; }
+  }
+  save(); renderEditor();
+});
+function confirmDel(q) { return !q.text || window.confirm('Delete this question?'); }
+function addQ() { quiz.questions.push(blankQ()); save(); renderEditor(); const cards = document.querySelectorAll('.qcard'); cards[cards.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => cards[cards.length - 1]?.querySelector('textarea').focus(), 300); }
+$('#addQ').onclick = addQ; $('#addQ2').onclick = addQ;
+$('#title').oninput = save;
+$('#clearAll').onclick = () => { if (confirm('Remove all questions?')) { quiz = { title: '', questions: [blankQ()] }; save(); renderEditor(); } };
+
+function validQs() {
+  return quiz.questions.map((q, i) => {
+    const opts = q.options.map(o => o.trim());
+    const filled = opts.filter(Boolean).length;
+    let problem = '';
+    if (!q.text.trim()) problem = 'no question text';
+    else if (filled < 2) problem = 'needs 2+ options';
+    else if (!opts[q.correct]) problem = 'correct answer is empty';
+    return { i, problem };
+  });
+}
+function summarize() {
+  const v = validQs(), bad = v.filter(x => x.problem);
+  const secs = quiz.questions.reduce((a, q) => a + (+q.time || +$('#st-time').value), 0);
+  $('#summary').textContent = `${quiz.questions.length} questions · about ${Math.ceil((secs + quiz.questions.length * 15) / 60)} min live`;
+  $('#invalid').innerHTML = bad.slice(0, 4).map(b => `Q${b.i + 1}: ${b.problem}`).join('<br>') + (bad.length > 4 ? `<br>+${bad.length - 4} more` : '');
+  $('#launch').disabled = bad.length > 0 || !quiz.questions.length;
+}
+
+// settings persistence
+const ST = { 'st-time': 'timeLimit', 'st-speed': 'speedScoring', 'st-shq': 'shuffleQuestions', 'st-sho': 'shuffleOptions', 'st-rank': 'showRank', 'st-id': 'requireId', 'st-late': 'lateJoin' };
+for (const [id, k] of Object.entries(ST)) {
+  const el = $('#' + id);
+  if (settings[k] !== undefined) el.type === 'checkbox' ? (el.checked = settings[k]) : (el.value = settings[k]);
+  el.onchange = () => { readSettings(); summarize(); };
+}
+function readSettings() {
+  const s = {}; for (const [id, k] of Object.entries(ST)) { const el = $('#' + id); s[k] = el.type === 'checkbox' ? el.checked : +el.value; }
+  LS.set('sq_settings', s); return s;
+}
+
+// ---------------- CSV ----------------
+function parseCSV(text) {
+  const rows = []; let row = [], f = '', q = false;
+  text = text.replace(/^﻿/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+function csvToQuestions(text) {
+  const rows = parseCSV(text);
+  if (!rows.length) return [];
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const hasHead = head.some(h => h.includes('question')) || head.some(h => h.includes('correct'));
+  const data = hasHead ? rows.slice(1) : rows;
+  let iq = 0, io = [1, 2, 3, 4, 5, 6], ic = 7, it = 8, ii = 9;
+  if (hasHead) {
+    iq = head.findIndex(h => h.includes('question')); if (iq < 0) iq = 0;
+    io = head.map((h, i) => (/^opt|^option|^answer ?[a-f1-6]$|^choice/.test(h) ? i : -1)).filter(i => i >= 0);
+    ic = head.findIndex(h => h.includes('correct'));
+    it = head.findIndex(h => h.includes('time') || h.includes('sec'));
+    ii = head.findIndex(h => h.includes('image'));
+  }
+  const out = [];
+  for (const r of data) {
+    const text = (r[iq] || '').trim();
+    const options = io.map(i => (r[i] || '').trim()).filter(Boolean).slice(0, 6);
+    let raw = (r[ic] || '').trim(), correct = -1;
+    if (/^[a-f]$/i.test(raw)) correct = LET.indexOf(raw.toUpperCase());
+    else if (/^\d$/.test(raw)) correct = +raw - 1;
+    else if (raw) correct = options.findIndex(o => o.toLowerCase() === raw.toLowerCase());
+    if (!text || options.length < 2 || correct < 0 || correct >= options.length) continue;
+    out.push({ text, options, correct, time: it >= 0 ? (r[it] || '').trim() : '', image: ii >= 0 ? (r[ii] || '').trim() : '' });
+  }
+  return out;
+}
+function download(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const csvCell = (v) => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+$('#sampleCsv').onclick = () => {
+  const lines = [['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Option E', 'Option F', 'Correct', 'Time', 'Image URL'],
+    ['What is the capital of Sri Lanka (administrative)?', 'Colombo', 'Kandy', 'Sri Jayawardenepura Kotte', 'Galle', '', '', 'C', '20', ''],
+    ['How many days are in a leap year?', '365', '366', '', '', '', '', 'B', '10', '']];
+  download('quiz-template.csv', '﻿' + lines.map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv');
+};
+$('#impCsv').onclick = () => $('#fileCsv').click();
+$('#fileCsv').onchange = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const qs = csvToQuestions(await file.text()); e.target.value = '';
+  if (!qs.length) return toast('No valid questions found in that CSV. Use the template.');
+  const replace = quiz.questions.every(q => !q.text.trim()) || confirm(`Found ${qs.length} questions.\nOK = replace current questions\nCancel = add to the end`);
+  quiz.questions = replace ? qs : quiz.questions.concat(qs);
+  if (replace && !quiz.title) quiz.title = file.name.replace(/\.csv$/i, '');
+  save(); renderEditor(); toast(`Imported ${qs.length} questions`);
+};
+$('#expJson').onclick = () => download((quiz.title || 'quiz').replace(/[^\w-]+/g, '_') + '.quiz.json', JSON.stringify(quiz, null, 2), 'application/json');
+$('#impJson').onclick = () => $('#fileJson').click();
+$('#fileJson').onchange = async (e) => {
+  try { const q = JSON.parse(await e.target.files[0].text()); if (!Array.isArray(q.questions)) throw 0; quiz = q; save(); renderEditor(); toast('Quiz loaded'); }
+  catch { toast('That file is not a valid quiz file'); }
+  e.target.value = '';
+};
+
+// ---------------- LIVE GAME (runs in the host's browser; Firebase relays to every phone) ----------------
+const be = await createBackend().catch((e) => { console.error(e); return null; });
+if (!be) { toast('Could not connect to the quiz service. Check internet / config.', 8000); }
+const COUNTDOWN_MS = 3000;
+let G = null;            // latest game document
+let players = [];        // players in this game
+let answers = [];        // answers for the current question
+let H = null;            // host-only data (answer key + scores) — never sent to phones
+let pin = null, stop = null, lastKey = '', unsub = [], unsubAns = null, ansQ = -1, timers = [], qLocalEnd = 0, cdLocalEnd = 0, ending = false;
+
+const baseUrl = () => location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+const joinUrl = (p) => `${baseUrl()}?pin=${p}`;
+const screenUrl = (p) => `${baseUrl()}host.html?screen=${p}`;
+const activePlayers = () => players.filter(p => !p.kicked);
+const saveH = () => LS.set('sq_host_game', H);
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+function shuffleArr(a) { const r = a.slice(); for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; }
+function prepareQuiz(qz, s) {
+  const def = Math.min(120, Math.max(5, +s.timeLimit || 20));
+  let qs = qz.questions.map(q => {
+    const opts = q.options.map((o, i) => ({ o: o.trim(), i })).filter(x => x.o);
+    const correct = opts.findIndex(x => x.i === q.correct);
+    return { text: q.text.trim(), image: /^https?:\/\//i.test(q.image || '') ? q.image.trim() : '', options: opts.map(x => x.o), correct, time: Math.round(Math.min(120, Math.max(5, +q.time || def))) };
+  }).filter(q => q.text && q.options.length >= 2 && q.correct >= 0);
+  if (s.shuffleQuestions) qs = shuffleArr(qs);
+  if (s.shuffleOptions) qs = qs.map(q => { const ord = shuffleArr(q.options.map((_, i) => i)); return { ...q, options: ord.map(i => q.options[i]), correct: ord.indexOf(q.correct) }; });
+  return { title: (qz.title || 'NovaQuiz').trim().slice(0, 120), questions: qs };
+}
+
+$('#launch').onclick = async () => {
+  if (!be) return toast('Not connected to the quiz service.');
+  save();
+  const s = readSettings();
+  const qz = prepareQuiz(quiz, s);
+  if (!qz.questions.length) return toast('Add at least one complete question.');
+  $('#launch').disabled = true;
+  try {
+    let p, tries = 0;
+    do { p = String(Math.floor(100000 + Math.random() * 900000)); } while ((await be.getGame(p)) && ++tries < 10);
+    const settings = { speedScoring: !!s.speedScoring, showRank: !!s.showRank, requireId: !!s.requireId, lateJoin: !!s.lateJoin };
+    await be.createGame(p, { hostUid: be.uid, title: qz.title, total: qz.questions.length, phase: 'lobby', qIndex: -1, settings, q: null, reveal: null, board: [], createdAt: be.SERVER_TS });
+    H = { pin: p, quiz: qz, settings, scores: {} };
+    saveH(); attach(p);
+  } catch (e) { console.error(e); toast('Could not create the game: ' + (e.code || e.message)); }
+  $('#launch').disabled = false;
+};
+
+function screenMsg(t, sub) {
+  $('#v-setup').classList.add('hidden'); $('#v-live').classList.remove('hidden');
+  $('#v-live').innerHTML = `<div class="center" style="flex:1"><h2 style="font-size:2.4rem">${esc(t)}</h2><p class="muted">${esc(sub || '')}</p></div>`;
+}
+
+function attach(p) {
+  pin = p; unsub.forEach(f => f()); unsub = [];
+  unsub.push(be.watchPlayers(pin, (list) => { players = list.sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0)); if (G) draw(); maybeAutoEnd(); }));
+  unsub.push(be.watchGame(pin, (g) => {
+    if (!g) { if (SCREEN) screenMsg('Waiting for game ' + pin + '…', 'Check the PIN in the link.'); return; }
+    G = g;
+    if (g.phase === 'question') watchAns(g.qIndex);
+    if (g.phase === 'ended') { if (SCREEN) screenMsg('Thanks for playing! 👋', 'The host has ended this game.'); return; }
+    draw();
+  }));
+}
+function watchAns(q) {
+  if (ansQ === q) return;
+  if (unsubAns) unsubAns();
+  ansQ = q; answers = [];
+  unsubAns = be.watchAnswers(pin, q, (list) => { answers = list; if (G?.phase === 'question') { const el = $('#ans'); if (el) el.textContent = `${answers.length}/${activePlayers().length}`; } maybeAutoEnd(); });
+}
+
+// ----- host actions -----
+const isHost = () => !!H && !SCREEN && H.pin === pin;
+async function nextStep() {
+  if (!isHost() || !G) return;
+  switch (G.phase) {
+    case 'lobby': return startCountdown(0);
+    case 'question': return endQuestion();
+    case 'reveal': return be.updateGame(pin, { phase: G.qIndex >= G.total - 1 ? 'final' : 'leaderboard' });
+    case 'leaderboard': return startCountdown(G.qIndex + 1);
+  }
+}
+async function startCountdown(i) {
+  clearTimers();
+  await be.updateGame(pin, { phase: 'countdown', qIndex: i, q: null, reveal: null });
+  timers.push(setTimeout(() => startQuestion(i), COUNTDOWN_MS));
+}
+async function startQuestion(i) {
+  const q = H.quiz.questions[i];
+  ending = false;
+  watchAns(i);
+  await be.updateGame(pin, { phase: 'question', qIndex: i, q: { text: q.text, image: q.image, options: q.options, time: q.time }, qStartAt: be.SERVER_TS });
+  timers.push(setTimeout(endQuestion, q.time * 1000 + 1500)); // +1.5s for answers still travelling
+}
+function maybeAutoEnd() {
+  if (!isHost() || G?.phase !== 'question' || ending) return;
+  const act = activePlayers();
+  if (act.length && act.every(p => answers.some(a => a.uid === p.id))) { ending = true; timers.push(setTimeout(endQuestion, 600)); }
+}
+function pointsFor(ms, limitMs) { if (!H.settings.speedScoring) return 1000; return Math.round(1000 * (1 - Math.min(1, Math.max(0, ms / limitMs)) / 2)); }
+async function endQuestion() {
+  if (!isHost() || G?.phase !== 'question' || endQuestion.busy) return;
+  endQuestion.busy = true; clearTimers();
+  try {
+    const qi = G.qIndex, q = H.quiz.questions[qi], start = G.qStartAt, limit = q.time * 1000;
+    const byUid = new Map(); for (const a of answers) if (a.q === qi && !byUid.has(a.uid)) byUid.set(a.uid, a);
+    const dist = q.options.map(() => 0); let fastest = null, correctCount = 0;
+    for (const p of activePlayers()) {
+      const sc = H.scores[p.id] ||= { score: 0, correct: 0, time: 0, streak: 0, hist: {} };
+      const a = byUid.get(p.id);
+      if (a && a.choice >= 0 && a.choice < q.options.length) {
+        const ms = Math.min(limit, Math.max(0, a.at - start));
+        const ok = a.choice === q.correct, pts = ok ? pointsFor(ms, limit) : 0;
+        dist[a.choice]++;
+        sc.score += pts; sc.last = pts; sc.la = true; sc.lc = ok;
+        if (ok) { sc.correct++; sc.time += ms; sc.streak++; correctCount++; if (!fastest || ms < fastest.elapsed) fastest = { name: p.name, elapsed: ms }; } else sc.streak = 0;
+        sc.hist[qi] = { choice: a.choice, correct: ok, ms, points: pts };
+      } else { sc.last = 0; sc.la = false; sc.lc = false; sc.streak = 0; sc.hist[qi] = null; }
+    }
+    saveH();
+    await be.updateGame(pin, { phase: 'reveal', reveal: { correct: q.correct, dist, fastest, correctCount, answered: byUid.size }, board: buildBoard() });
+  } catch (e) { console.error(e); toast('Network problem — tap again'); }
+  endQuestion.busy = false;
+}
+function buildBoard() {
+  return activePlayers().map(p => { const s = H.scores[p.id] || { score: 0, correct: 0, time: 0, streak: 0 }; return { id: p.id, name: p.name, score: s.score, correct: s.correct, time: s.time, streak: s.streak, last: s.last || 0, la: !!s.la, lc: !!s.lc }; })
+    .sort((a, b) => b.score - a.score || a.time - b.time);
+}
+async function kick(p) { if (isHost() && confirm(`Remove ${p.name}?`)) { await be.updatePlayer(pin, p.id, { kicked: true }); if (G.phase !== 'lobby') be.updateGame(pin, { board: buildBoard() }); } }
+function leaveGame(endIt) {
+  if (endIt && isHost()) be.updateGame(pin, { phase: 'ended' }).catch(() => {});
+  clearTimers(); unsub.forEach(f => f()); unsub = []; if (unsubAns) unsubAns(); unsubAns = null; ansQ = -1;
+  H = null; G = null; pin = null; lastKey = ''; LS.set('sq_host_game', null); showSetup();
+}
+function showSetup() { $('#v-setup').classList.remove('hidden'); $('#v-live').classList.add('hidden'); $('#barRight').innerHTML = ''; renderEditor(); }
+document.addEventListener('keydown', (e) => {
+  if (!G || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); nextStep(); }
+});
+
+// ----- rendering (same for host phone and big screen) -----
+function draw() {
+  const g = G;
+  $('#v-setup').classList.add('hidden'); $('#v-live').classList.remove('hidden');
+  const n = activePlayers().length;
+  $('#barRight').innerHTML = `<span class="muted">PIN <b style="color:var(--ink)">${pin}</b> · 👥 ${n}</span><button class="btn-ghost" id="fs">⛶</button><button class="btn-danger" id="endBtn">End game</button>`;
+  $('#endBtn').onclick = () => confirm('End this game for everyone?') && leaveGame(true);
+  $('#fs').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  const key = g.phase + ':' + g.qIndex, fresh = key !== lastKey; lastKey = key;
+  if (fresh && g.phase === 'question') qLocalEnd = Date.now() + (g.q?.time || 20) * 1000;
+  if (fresh && g.phase === 'countdown') cdLocalEnd = Date.now() + COUNTDOWN_MS;
+  if (stop && (fresh || g.phase !== 'question')) { stop(); stop = null; }
+  const s = {
+    pin, title: g.title, phase: g.phase, total: g.total, qIndex: g.qIndex,
+    players: activePlayers(), answered: answers.length,
+    startsAt: cdLocalEnd,
+    question: g.q ? { ...g.q, index: g.qIndex, total: g.total, endsAt: qLocalEnd } : null,
+    reveal: g.reveal,
+    leaderboard: (g.board || []).map((p, i) => ({ ...p, rank: i + 1, totalTime: p.time })),
+  };
+  const fn = { lobby, countdown, question, reveal, leaderboard, final }[g.phase];
+  if (fn && (g.phase !== 'question' || s.question) && (g.phase !== 'reveal' || (s.reveal && s.question))) fn($('#v-live'), s, fresh);
+}
+
+function lobby(v, s, fresh) {
+  const players = s.players;
+  if (fresh || !$('#chips')) {
+    const qr = qrcode(0, 'M'); qr.addData(joinUrl(s.pin)); qr.make();
+    v.innerHTML = `
+      <div class="center" style="gap:10px">
+        <div class="muted" style="font-size:1.2rem;font-weight:700">Scan to join, or open <b style="color:var(--ink)">${esc(baseUrl().replace(/^https?:\/\//, ''))}</b></div>
+        <div class="pinbox pop"><div><div style="font-weight:800;color:#555">Game PIN</div><div class="pin">${s.pin}</div></div><div class="qr">${qr.createSvgTag({ cellSize: 5, margin: 1, scalable: true })}</div></div>
+        <h2 style="margin-top:18px">${esc(s.title)}</h2>
+        <div class="tvlink"><span class="muted">📺 Big screen / projector link:</span><code>${esc(screenUrl(s.pin))}</code><button class="btn-ghost" id="copyTv" style="padding:6px 12px">Copy</button></div>
+        <div class="tvlink"><span class="muted">🔗 Staff join link:</span><code>${esc(joinUrl(s.pin))}</code><button class="btn-ghost" id="shareJoin" style="padding:6px 12px">Share</button></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="foot"><span class="kbd" id="pcount"></span>
+        <button class="btn-primary btn-big" id="startBtn">Start quiz ▶</button></div>`;
+    $('#startBtn').onclick = nextStep;
+    const copy = (u, ok) => (navigator.clipboard?.writeText(u) || Promise.reject()).then(() => toast(ok), () => prompt('Copy this link:', u));
+    $('#copyTv').onclick = () => copy(screenUrl(s.pin), 'Link copied — open it on the TV/laptop');
+    $('#shareJoin').onclick = () => navigator.share ? navigator.share({ title: s.title, text: `Join our quiz! PIN ${s.pin}`, url: joinUrl(s.pin) }).catch(() => {}) : copy(joinUrl(s.pin), 'Join link copied — paste it in WhatsApp/Viber');
+  }
+  $('#pcount').textContent = `${players.length} player${players.length === 1 ? '' : 's'} joined · ${s.total} questions · tap a name to remove it`;
+  $('#startBtn').disabled = !players.length || !isHost();
+  const chips = $('#chips');
+  const want = new Set(players.map(p => p.id));
+  [...chips.children].forEach(c => { if (!want.has(c.dataset.id)) c.remove(); });
+  players.forEach(p => {
+    if (chips.querySelector(`[data-id="${p.id}"]`)) return;
+    const c = document.createElement('div'); c.className = 'chip'; c.dataset.id = p.id; c.textContent = p.name;
+    c.onclick = () => kick(p); chips.appendChild(c); if (!fresh) beep(700, 60);
+  });
+}
+function countdown(v, s, fresh) {
+  if (!fresh) return;
+  v.innerHTML = `<div class="center" style="flex:1"><div class="muted" style="font-size:1.4rem;font-weight:700">Question ${s.qIndex + 1} of ${s.total}</div><div id="cd" class="pop" style="font-size:12rem;font-weight:900;line-height:1"></div></div>`;
+  let last = null;
+  const tick = () => { const n = Math.ceil((s.startsAt - Date.now()) / 1000); if (n !== last && n > 0) { last = n; const el = $('#cd'); if (!el) return; el.textContent = n; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); beep(440 + (3 - n) * 120); } if (n > 0 && G?.phase === 'countdown') requestAnimationFrame(tick); };
+  tick();
+}
+function optTiles(q, correct) {
+  return `<div class="ogrid">${q.options.map((o, i) => `<div class="otile opt ${correct != null && i !== correct ? 'wrong' : ''}" data-i="${i}"><span class="shape">${SHAPES[i]}</span><span>${esc(o)}</span>${correct === i ? '<span class="tick">✔</span>' : ''}</div>`).join('')}</div>`;
+}
+function question(v, s, fresh) {
+  const q = s.question;
+  if (fresh) {
+    v.innerHTML = `
+      <div class="qtop"><div class="ring" id="ring"></div>
+        <div class="muted" style="font-weight:800;font-size:1.2rem">Question ${q.index + 1} / ${q.total}</div>
+        <div class="count"><span id="ans">0</span><small>answered</small></div></div>
+      <div class="qbig">${esc(q.text)}</div>
+      ${q.image ? `<img class="qimg" src="${esc(q.image)}" alt="">` : ''}
+      ${optTiles(q, null)}
+      <div class="foot"><span class="kbd">Space / Enter = skip to answer</span><button class="btn-ghost" id="skip">Show answer now</button></div>`;
+    $('#skip').onclick = nextStep;
+    stop = runTimer($('#ring'), q.endsAt, q.time, (left) => { if (left > 0 && left < 5000 && Math.ceil(left / 1000) !== question._t) { question._t = Math.ceil(left / 1000); beep(300, 60); } });
+  }
+  $('#ans').textContent = `${s.answered}/${s.players.length}`;
+}
+function reveal(v, s, fresh) {
+  const q = s.question, r = s.reveal, max = Math.max(1, ...r.dist);
+  const answered = r.dist.reduce((a, b) => a + b, 0);
+  v.innerHTML = `
+    <div class="muted" style="font-weight:800;font-size:1.1rem;text-align:center">Question ${q.index + 1} / ${q.total}</div>
+    <div class="qbig" style="margin:10px auto">${esc(q.text)}</div>
+    <div class="dist">${r.dist.map((d, i) => `<div class="dcol opt" data-i="${i}"><div class="v">${d}</div><div class="b" style="height:${fresh ? 0 : (d / max) * 150}px" data-h="${(d / max) * 150}"></div><div class="sh">${SHAPES[i]}${i === r.correct ? ' ✔' : ''}</div></div>`).join('')}</div>
+    <div class="fast">${r.fastest ? `⚡ Fastest correct: ${esc(r.fastest.name)} (${(r.fastest.elapsed / 1000).toFixed(2)}s)` : 'Nobody got this one!'} · ${r.correctCount}/${r.answered ?? answered} correct</div>
+    ${optTiles(q, r.correct)}
+    <div class="foot"><span class="kbd">Space / Enter = next</span><button class="btn-primary btn-big" id="nx">${q.index + 1 >= q.total ? 'Final results 🏆' : 'Leaderboard ▶'}</button></div>`;
+  $('#nx').onclick = nextStep;
+  if (fresh) requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.dcol .b').forEach(b => b.style.height = b.dataset.h + 'px'), 30));
+}
+function leaderboard(v, s) {
+  const top = s.leaderboard.slice(0, 10);
+  v.innerHTML = `<h2 class="center" style="font-size:2.4rem">Leaderboard</h2>
+    <div class="lb">${top.map((p, i) => `<div class="lbrow ${i === 0 ? 'top1' : ''}" style="animation-delay:${i * 60}ms"><span class="rk">${p.rank}</span><span class="nm">${esc(p.name)}${p.streak > 2 ? ` <small>🔥${p.streak}</small>` : ''}</span><span class="sc">${p.score}</span></div>`).join('') || '<p class="center muted">No players</p>'}</div>
+    <div class="foot"><span class="kbd">${s.leaderboard.length} players · next: question ${s.qIndex + 2} of ${s.total}</span><button class="btn-primary btn-big" id="nx">Next question ▶</button></div>`;
+  $('#nx').onclick = nextStep;
+}
+function final(v, s, fresh) {
+  const lb = s.leaderboard, medals = ['🥇', '🥈', '🥉'], cols = ['#d4a017', '#9aa4b2', '#b06b2c'], hts = [260, 190, 140];
+  const order = [1, 0, 2].filter(i => lb[i]);
+  v.innerHTML = `<h2 class="center" style="font-size:2.6rem">🏆 ${esc(s.title)} — Winners</h2>
+    <div class="podium">${order.map(i => `<div class="pcol"><div class="who">${medals[i]} ${esc(lb[i].name)}<div class="muted" style="font-size:1rem">${lb[i].score} pts · ${lb[i].correct}/${s.total} correct</div></div><div class="blk" style="height:${hts[i]}px;background:${cols[i]};animation-delay:${(2 - i) * 0.35}s">${i + 1}</div></div>`).join('')}</div>
+    <div class="card" style="max-height:38vh;overflow:auto"><table><thead><tr><th>#</th><th>Name</th><th>Score</th><th>Correct</th><th>Avg time (correct)</th></tr></thead>
+      <tbody>${lb.map(p => `<tr><td>${p.rank}</td><td>${esc(p.name)}</td><td>${p.score}</td><td>${p.correct}/${s.total}</td><td>${p.correct ? (p.totalTime / p.correct / 1000).toFixed(2) + 's' : '–'}</td></tr>`).join('')}</tbody></table></div>
+    <div class="foot"><button class="btn-ghost" id="csv">⬇ Download results (CSV)</button><button class="btn-primary btn-big" id="newg">New game</button></div>`;
+  if (isHost()) $('#csv').onclick = () => exportResults(s); else $('#csv').remove();
+  $('#newg').onclick = () => leaveGame(true);
+  if (fresh) setTimeout(() => confetti(6000), 900);
+}
+function exportResults(s) {
+  const Q = H.quiz.questions, head = ['Rank', 'Name', 'Score', 'Correct', 'Total correct time (s)'];
+  Q.forEach((q, i) => head.push(`Q${i + 1} answer`, `Q${i + 1} result`, `Q${i + 1} seconds`));
+  const rows = s.leaderboard.map(p => {
+    const sc = H.scores[p.id] || { hist: {} };
+    const r = [p.rank, p.name, p.score, p.correct, (p.time / 1000).toFixed(2)];
+    Q.forEach((q, i) => { const a = sc.hist?.[i]; r.push(a ? `${LET[a.choice]}: ${q.options[a.choice]}` : '(no answer)', a ? (a.correct ? 'Correct' : 'Wrong') : 'Missed', a ? (a.ms / 1000).toFixed(2) : ''); });
+    return r;
+  });
+  const key = ['', 'ANSWER KEY'].concat(Q.map((q, i) => `Q${i + 1}: ${q.text} → ${LET[q.correct]}: ${q.options[q.correct]}`));
+  const csv = [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n\r\n' + key.map(csvCell).join('\r\n');
+  download(`${s.title.replace(/[^\w-]+/g, '_')}_results_${new Date().toISOString().slice(0, 10)}.csv`, '\uFEFF' + csv, 'text/csv');
+}
+
+// ----- boot -----
+window.__quiz = { get G() { return G; }, get H() { return H; }, nextStep, get players() { return players; } }; // for testing
+if (SCREEN) {
+  screenMsg('Connecting to game ' + SCREEN + '…');
+  if (be) attach(SCREEN);
+} else {
+  renderEditor();
+  const saved = LS.get('sq_host_game', null);
+  if (be && saved?.pin) {
+    be.getGame(saved.pin).then((g) => {
+      if (g && g.hostUid === be.uid && g.phase !== 'ended') {
+        H = saved; attach(saved.pin);
+        if (g.phase === 'countdown') startQuestion(g.qIndex);
+        if (g.phase === 'question') { const left = (g.qStartAt + g.q.time * 1000 + 1500) - Date.now(); timers.push(setTimeout(endQuestion, Math.max(500, left))); }
+      } else LS.set('sq_host_game', null);
+    }).catch(() => {});
+  }
+}
+</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+</body>
+</html>
