@@ -31,7 +31,8 @@ Tested with 100 simulated players at the same time.
 ## 2. Run everything from your phone (admin)
 
 1. Put the app online once (see *Option B* below, Render.com). After that you only need your phone.
-2. On your phone open `https://<your-app>.onrender.com/host`, enter the host password under *Game settings*, and tap **Launch live game**.
+2. On your phone open `https://<your-app>.onrender.com/host` and install it: in Chrome tap ⋮ → **Add to Home screen / Install app**; in Safari tap Share → **Add to Home Screen**. A **Quiz Admin** icon appears on your phone and opens full screen like a normal app.
+   On that page, enter the host password, enter the host password under *Game settings*, and tap **Launch live game**.
 3. Staff scan the QR code on your phone, or you tell them the PIN. They join at `https://<your-app>.onrender.com`.
 4. Use the big yellow button at the bottom to run the game: Start, then Leaderboard, then Next question.
    - **No TV?** That's fine. Every staff phone shows the question and the answer buttons.

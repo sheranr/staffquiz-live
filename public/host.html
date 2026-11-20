@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="theme-color" content="#12122a">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Host · StaffQuiz Live</title>
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest-host.json">
 <link rel="stylesheet" href="/style.css">
 <style>
   .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--line);background:#0006;position:sticky;top:0;z-index:5;backdrop-filter:blur(6px)}
@@ -495,5 +501,6 @@ function exportResults(s) {
 
 if (!SCREEN) renderEditor();
 </script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>
