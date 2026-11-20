@@ -1,0 +1,48 @@
+rules_version = '2';
+// StaffQuiz Live security rules.
+// Paste into Firebase console → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /games/{pin} {
+      function game() { return get(/databases/$(database)/documents/games/$(pin)).data; }
+      function isHost() { return request.auth != null && request.auth.uid == game().hostUid; }
+
+      // Anyone with the PIN can watch the game. Only the host who created it can change it.
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.hostUid == request.auth.uid;
+      allow update: if request.auth != null && resource.data.hostUid == request.auth.uid
+                    && request.resource.data.hostUid == resource.data.hostUid;
+      allow delete: if false;
+
+      // Players: each person can only create their own entry; only the host can change it (remove player).
+      match /players/{uid} {
+        allow read: if true;
+        allow create: if request.auth != null && request.auth.uid == uid
+                      && request.resource.data.keys().hasOnly(['name', 'nameLower', 'joinedAt'])
+                      && request.resource.data.name is string
+                      && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
+                      && request.resource.data.joinedAt == request.time;
+        allow update: if isHost();
+        allow delete: if false;
+      }
+
+      // Answers: one per player per question, timestamped by Google's server, only while the
+      // question is open and before its time runs out. Nobody can change an answer afterwards.
+      match /answers/{aid} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && aid == string(request.resource.data.q) + '_' + request.auth.uid
+                      && request.resource.data.keys().hasOnly(['uid', 'q', 'choice', 'at'])
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.choice is int
+                      && request.resource.data.at == request.time
+                      && game().phase == 'question'
+                      && game().qIndex == request.resource.data.q
+                      && request.time < game().qStartAt + duration.value(game().q.time + 2, 's')
+                      && exists(/databases/$(database)/documents/games/$(pin)/players/$(request.auth.uid))
+                      && get(/databases/$(database)/documents/games/$(pin)/players/$(request.auth.uid)).data.get('kicked', false) == false;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

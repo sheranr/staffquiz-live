@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#12122a">
 <title>Join Quiz</title>
-<link rel="icon" href="/icon.svg">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
 <style>
   body{min-height:100dvh}
   .wrap{max-width:560px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding:16px}
@@ -93,125 +93,156 @@
   </section>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="/common.js"></script>
-<script>
-const socket = io({ transports: ['websocket', 'polling'] });
+<script src="common.js"></script>
+<script type="module">
+import { createBackend } from './backend.js';
 const qs = new URLSearchParams(location.search);
 const show = (id) => { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('hidden', s.id !== id)); };
-const session = () => { try { return JSON.parse(localStorage.getItem('sq_session') || 'null'); } catch { return null; } };
-const saveSession = (v) => { try { v ? localStorage.setItem('sq_session', JSON.stringify(v)) : localStorage.removeItem('sq_session'); } catch {} };
+const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
-$('#pin').value = qs.get('pin') || session()?.pin || '';
-$('#name').value = (() => { try { return localStorage.getItem('sq_name') || ''; } catch { return ''; } })();
+$('#pin').value = qs.get('pin') || ls.get('sq_session')?.pin || '';
+$('#name').value = ls.get('sq_name') || '';
 if ($('#pin').value) setTimeout(() => $('#name').focus(), 50);
 
-let state = null, stopTimer = null, myPick = null, lastPhaseKey = '';
+let be = null, pin = null, game = null, me = null, myPick = {}, unsub = [], lastKey = '', stopBar = null, qLocalEnd = 0;
 
 function msg(icon, title, sub) { $('#msg-icon').textContent = icon; $('#msg-title').textContent = title; $('#msg-sub').textContent = sub || ''; show('s-msg'); }
+const err = (t) => { $('#err').textContent = t || ''; };
 
-function join(auto) {
-  const s = session();
-  const pin = $('#pin').value.trim();
-  const payload = auto && s ? { pin: s.pin, playerId: s.playerId } : { pin, name: $('#name').value, staffId: $('#sid').value };
-  if (!auto && !/^\d{6}$/.test(pin)) { $('#err').textContent = 'Enter the 6-digit PIN.'; return; }
+const ready = createBackend().then(b => (be = b)).catch(e => { console.error(e); err('Could not connect. Check your internet and reload.'); });
+
+async function join(auto) {
+  await ready; if (!be) return;
+  const s = ls.get('sq_session');
+  const p = auto ? s.pin : $('#pin').value.trim();
+  if (!/^\d{6}$/.test(p)) return err('Enter the 6-digit PIN.');
   $('#joinBtn').disabled = true;
-  socket.emit('player:join', payload, (res) => {
-    $('#joinBtn').disabled = false;
-    if (!res?.ok) {
-      if (auto) { saveSession(null); show('s-join'); return; }
-      $('#err').textContent = res?.error || 'Could not join.'; return;
+  try {
+    const g = await be.getGame(p);
+    if (!g || g.phase === 'ended') throw new Error('Game not found. Check the PIN.');
+    const existing = await be.getPlayer(p, be.uid);
+    if (existing) {
+      if (existing.kicked) throw new Error('You were removed from this game.');
+    } else {
+      if (auto) throw new Error('');
+      const nm = $('#name').value.trim().replace(/\s+/g, ' ').slice(0, 24);
+      const sid = $('#sid').value.trim().slice(0, 24);
+      if (!nm) throw new Error('Enter your name.');
+      if (g.settings?.requireId && !sid) { $('#sid-wrap').classList.remove('hidden'); throw new Error('Enter your staff ID.'); }
+      if (g.phase !== 'lobby' && g.settings?.lateJoin === false) throw new Error('The quiz has already started.');
+      const display = sid ? `${nm} (${sid})` : nm;
+      if (await be.nameTaken(p, display.toLowerCase())) throw new Error('That name is taken — add an initial.');
+      await be.addPlayer(p, { name: display, nameLower: display.toLowerCase(), joinedAt: be.SERVER_TS });
+      ls.set('sq_name', nm);
     }
-    $('#err').textContent = '';
-    saveSession({ pin: payload.pin, playerId: res.playerId });
-    try { localStorage.setItem('sq_name', $('#name').value); } catch {}
-  });
+    ls.set('sq_session', { pin: p });
+    err(''); start(p);
+  } catch (e) {
+    if (auto) { ls.set('sq_session', null); show('s-join'); }
+    else err(e.message || 'Could not join. Try again.');
+  } finally { $('#joinBtn').disabled = false; }
 }
 $('#joinBtn').onclick = () => { beep(0, 1); join(false); };
 ['pin', 'name', 'sid'].forEach(id => $('#' + id).addEventListener('keydown', e => { if (e.key === 'Enter') join(false); }));
 
-socket.on('connect', () => { const s = session(); if (s && (!qs.get('pin') || qs.get('pin') === s.pin)) join(true); });
-socket.on('disconnect', () => toast('Reconnecting…', 4000));
-socket.on('kicked', () => { saveSession(null); msg('🚫', 'Removed by host', 'You can re-join with a different name.'); setTimeout(() => show('s-join'), 3000); });
-socket.on('ended', () => { saveSession(null); msg('👋', 'Game ended', 'Thanks for playing!'); });
+function start(p) {
+  pin = p; unsub.forEach(f => f()); unsub = [];
+  msg('✅', "You're in!", 'Look for your name on the big screen. The quiz will start soon.');
+  unsub.push(be.watchPlayer(pin, be.uid, (d) => {
+    me = d;
+    if (d?.kicked) { stopAll(); ls.set('sq_session', null); msg('🚫', 'Removed by host', 'You can re-join with a different name.'); setTimeout(() => show('s-join'), 3000); }
+  }));
+  unsub.push(be.watchGame(pin, (g) => { if (g && !me?.kicked) render(g); }));
+}
+function stopAll() { unsub.forEach(f => f()); unsub = []; }
 
-socket.on('state', (s) => {
-  syncClock(s.serverNow);
-  state = s;
+function myBoard(g) {
+  const b = g.board || [];
+  const i = b.findIndex(x => x.id === be.uid);
+  return i < 0 ? null : { ...b[i], rank: i + 1, of: b.length, ahead: i > 0 ? b[i - 1] : null };
+}
+
+function render(g) {
+  game = g;
+  const mb = myBoard(g);
   $('#meta').classList.remove('hidden');
-  $('#meta').textContent = `${s.name} · ${s.score} pts`;
-  const key = s.phase + ':' + s.qIndex;
-  const fresh = key !== lastPhaseKey; lastPhaseKey = key;
-  if (stopTimer && s.phase !== 'question') { stopTimer(); stopTimer = null; }
-
-  switch (s.phase) {
+  $('#meta').textContent = `${me?.name || ''} · ${mb ? mb.score : 0} pts`;
+  const key = g.phase + ':' + g.qIndex, fresh = key !== lastKey; lastKey = key;
+  if (stopBar && g.phase !== 'question') { stopBar(); stopBar = null; }
+  const showRank = g.settings?.showRank !== false;
+  switch (g.phase) {
     case 'lobby': msg('✅', "You're in!", 'Look for your name on the big screen. The quiz will start soon.'); break;
-    case 'countdown': msg('⏱️', s.qIndex === 0 ? 'Get ready!' : `Question ${s.qIndex + 1} coming up`, 'Answer fast — speed earns more points.'); if (fresh) beep(520); break;
-    case 'question': renderQuestion(s, fresh); break;
-    case 'reveal': renderResult(s, fresh); break;
+    case 'countdown': msg('⏱️', g.qIndex === 0 ? 'Get ready!' : `Question ${g.qIndex + 1} coming up`, 'Answer fast — speed earns more points.'); if (fresh) beep(520); break;
+    case 'question': if (g.q) renderQuestion(g, fresh); break;
+    case 'reveal': renderResult(g, mb, showRank, fresh); break;
     case 'leaderboard': {
-      const r = s.rank ? `You're #${s.rank} of ${s.of}` : 'Leaderboard on the big screen';
-      const b = s.behind ? `${s.behind.by} pts behind ${s.behind.name}` : (s.rank === 1 ? 'You are leading! 🔥' : '');
-      msg(s.rank === 1 ? '👑' : '📊', r, b);
-      break;
+      if (!showRank || !mb) { msg('📊', 'Leaderboard on the big screen', ''); break; }
+      const b = mb.ahead ? `${mb.ahead.score - mb.score} pts behind ${mb.ahead.name}` : 'You are leading! 🔥';
+      msg(mb.rank === 1 ? '👑' : '📊', `You're #${mb.rank} of ${mb.of}`, b); break;
     }
-    case 'final': renderFinal(s, fresh); break;
+    case 'final': renderFinal(g, mb, fresh); break;
+    case 'ended': stopAll(); ls.set('sq_session', null); msg('👋', 'Game ended', 'Thanks for playing!'); break;
   }
-});
+}
 
-function renderQuestion(s, fresh) {
-  const q = s.question;
+function renderQuestion(g, fresh) {
+  const q = g.q, qi = g.qIndex;
   show('s-q');
-  if (fresh) { myPick = null; }
-  const picked = s.answered ?? myPick;
-  $('#q-num').textContent = `Question ${q.index + 1} of ${q.total}`;
+  if (fresh) qLocalEnd = Date.now() + q.time * 1000;
+  const picked = myPick[qi] ?? null;
+  $('#q-num').textContent = `Question ${qi + 1} of ${g.total}`;
   $('#q-text').textContent = q.text;
   const img = $('#q-img'); if (q.image) { img.src = q.image; img.classList.remove('hidden'); } else img.classList.add('hidden');
   const box = $('#opts');
   box.className = 'opts' + (q.options.length === 4 && q.options.every(o => o.length <= 18) ? ' two' : '');
   box.innerHTML = q.options.map((o, i) => `<button class="opt ${picked != null ? (picked === i ? 'picked' : 'dim') : ''}" data-i="${i}" ${picked != null ? 'disabled' : ''}><span class="shape">${SHAPES[i]}</span><span>${esc(o)}</span></button>`).join('');
-  box.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(+b.dataset.i));
+  box.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(qi, +b.dataset.i));
   $('#locked').classList.toggle('hidden', picked == null);
-  if (fresh || !stopTimer) {
-    if (stopTimer) stopTimer();
+  if (fresh || !stopBar) {
+    if (stopBar) stopBar();
     const bar = $('#tbar'); let raf;
-    const tick = () => { const left = Math.max(0, q.endsAt - serverNow()); bar.style.width = (100 * left / (q.time * 1000)) + '%'; bar.style.background = left < q.time * 250 ? 'var(--bad)' : 'var(--accent)'; if (left > 0) raf = requestAnimationFrame(tick); };
-    tick(); stopTimer = () => cancelAnimationFrame(raf);
+    const tick = () => { const left = Math.max(0, qLocalEnd - Date.now()); bar.style.width = (100 * left / (q.time * 1000)) + '%'; bar.style.background = left < q.time * 250 ? 'var(--bad)' : 'var(--accent)'; if (left > 0) raf = requestAnimationFrame(tick); };
+    tick(); stopBar = () => cancelAnimationFrame(raf);
   }
 }
 
-function answer(i) {
-  if (myPick != null) return;
-  myPick = i;
+function answer(qi, i) {
+  if (myPick[qi] != null || game?.phase !== 'question' || game.qIndex !== qi) return;
+  myPick[qi] = i;
   if (navigator.vibrate) navigator.vibrate(30);
-  renderQuestion({ ...state, answered: i }, false);
-  socket.emit('player:answer', { choice: i }, (res) => { if (!res?.ok) toast('Too late — time is up!'); });
+  renderQuestion(game, false);
+  be.submitAnswer(pin, qi, i).catch(() => { toast('Too late — time is up!'); });
 }
 
-function renderResult(s, fresh) {
-  const r = s.result; show('s-r');
+function renderResult(g, mb, showRank, fresh) {
+  const r = g.reveal || {}; show('s-r');
+  const answered = !!mb?.la, correct = !!mb?.lc;
   const box = $('#r-box');
-  box.className = 'result center ' + (!r.answered ? 'none' : r.correct ? 'good' : 'bad') + (fresh ? ' pop' : '');
-  $('#r-icon').textContent = !r.answered ? '⌛' : r.correct ? '✓' : '✕';
-  $('#r-title').textContent = !r.answered ? "Time's up!" : r.correct ? 'Correct!' : 'Not quite';
-  $('#r-points').textContent = r.correct ? `+${r.points} pts` + (r.streak > 1 ? `  🔥 ${r.streak} in a row` : '') : '+0 pts';
-  $('#r-correct').textContent = r.correct ? '' : `Correct answer: ${SHAPES[r.correctIndex]} ${r.correctText}`;
-  $('#r-rank').textContent = s.rank ? `You're #${s.rank} of ${s.of} · ${s.score} pts total` : `${s.score} pts total`;
-  if (fresh && r.correct) beep(880, 160);
+  box.className = 'result center ' + (!answered ? 'none' : correct ? 'good' : 'bad') + (fresh ? ' pop' : '');
+  $('#r-icon').textContent = !answered ? '⌛' : correct ? '✓' : '✕';
+  $('#r-title').textContent = !answered ? "Time's up!" : correct ? 'Correct!' : 'Not quite';
+  $('#r-points').textContent = correct ? `+${mb.last} pts` + (mb.streak > 1 ? `  🔥 ${mb.streak} in a row` : '') : '+0 pts';
+  $('#r-correct').textContent = correct || r.correct == null ? '' : `Correct answer: ${SHAPES[r.correct]} ${g.q.options[r.correct]}`;
+  $('#r-rank').textContent = mb ? (showRank ? `You're #${mb.rank} of ${mb.of} · ${mb.score} pts total` : `${mb.score} pts total`) : '';
+  if (fresh && correct) beep(880, 160);
 }
 
-function renderFinal(s, fresh) {
+function renderFinal(g, mb, fresh) {
   show('s-f');
   const medals = ['🥇', '🥈', '🥉'];
-  $('#f-icon').textContent = s.rank && s.rank <= 3 ? medals[s.rank - 1] : '🏁';
-  $('#f-title').textContent = s.rank ? `You finished #${s.rank} of ${s.of}` : 'Quiz finished!';
-  $('#f-score').textContent = `${s.score} points`;
-  const t = s.top3 || [], order = [1, 0, 2], hts = [110, 150, 80];
+  $('#f-icon').textContent = mb && mb.rank <= 3 ? medals[mb.rank - 1] : '🏁';
+  $('#f-title').textContent = mb ? `You finished #${mb.rank} of ${mb.of}` : 'Quiz finished!';
+  $('#f-score').textContent = `${mb ? mb.score : 0} points`;
+  const t = (g.board || []).slice(0, 3), order = [1, 0, 2], hts = [110, 150, 80];
   $('#podium').innerHTML = order.filter(i => t[i]).map(i => `<div style="height:${hts[order.indexOf(i)]}px">${medals[i]}<br>${esc(t[i].name)}<br><span class="muted">${t[i].score}</span></div>`).join('');
-  if (fresh && s.rank && s.rank <= 3) confetti();
-  saveSession(null);
+  if (fresh && mb && mb.rank <= 3) confetti();
+  ls.set('sq_session', null);
 }
+
+// auto-rejoin after refresh / phone sleep
+const s = ls.get('sq_session');
+if (s && (!qs.get('pin') || qs.get('pin') === s.pin)) join(true);
 </script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
 </body>
 </html>
