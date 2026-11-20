@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="theme-color" content="#12122a">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Host · StaffQuiz Live</title>
+<title>NovaQuiz – Admin</title>
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -118,7 +118,7 @@
 </head>
 <body>
 <div class="bar">
-  <span class="brand">Staff<b>Quiz</b> Live <span class="muted" style="font-weight:600;font-size:.9rem">· Host</span></span>
+  <span class="brand">Nova<b>Quiz</b> <span class="muted" style="font-weight:600;font-size:.9rem">· Host</span></span>
   <div class="row" id="barRight"></div>
 </div>
 
@@ -372,7 +372,7 @@ function prepareQuiz(qz, s) {
   }).filter(q => q.text && q.options.length >= 2 && q.correct >= 0);
   if (s.shuffleQuestions) qs = shuffleArr(qs);
   if (s.shuffleOptions) qs = qs.map(q => { const ord = shuffleArr(q.options.map((_, i) => i)); return { ...q, options: ord.map(i => q.options[i]), correct: ord.indexOf(q.correct) }; });
-  return { title: (qz.title || 'Staff Quiz').trim().slice(0, 120), questions: qs };
+  return { title: (qz.title || 'NovaQuiz').trim().slice(0, 120), questions: qs };
 }
 
 $('#launch').onclick = async () => {

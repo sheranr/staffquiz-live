@@ -1,4 +1,4 @@
-# StaffQuiz Live
+# NovaQuiz
 
 A live, game-show style MCQ quiz for your staff, similar to FlexiQuiz Live or Kahoot.
 You run it from your phone. Staff join by tapping a link or scanning a QR code, then answer on their phones. **A faster correct answer earns more points**, so the quickest correct person finishes 1st.
@@ -19,7 +19,7 @@ Tested with 100 players in one game. Players can join late, and the host page ca
 | **TV / projector (optional)** | The *Big screen link* shown in the lobby, e.g. `…/host.html?screen=123456`. It shows the game in full screen with no buttons, while you control it from your phone |
 
 ## Running a quiz from your phone
-1. Open **Quiz Admin**. Add questions, or tap *Import CSV* to load questions made in Excel or Google Sheets.
+1. Open **NovaQuiz Admin**. Add questions, or tap *Import CSV* to load questions made in Excel or Google Sheets.
 2. Tap **Launch live game**. A PIN and QR code appear.
 3. Staff scan the QR code, or you tap **Share** to send the join link on WhatsApp or Viber.
 4. Use the big yellow button at the bottom to run the game: Start, then Leaderboard, then Next question, and finally Final results 🏆.
