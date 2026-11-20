@@ -1,0 +1,22 @@
+{
+  "name": "staffquiz-live",
+  "version": "1.0.0",
+  "description": "Live MCQ quiz game for staff — fastest correct answer wins",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "load-test": "node test/load-test.js 100"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
